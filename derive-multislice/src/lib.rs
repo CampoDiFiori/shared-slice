@@ -1,30 +1,7 @@
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, Span};
 use quote::quote;
-use syn::{parse_macro_input, DeriveInput, Field, FieldsNamed, Type};
-
-fn map_to_ref_wo_lifetime(t1: &syn::Type) -> syn::Type {
-    match t1 {
-        syn::Type::Reference(syn::TypeReference {
-            elem, and_token, ..
-        }) => match *elem.clone() {
-            syn::Type::Slice(syn::TypeSlice {
-                elem: t2,
-                bracket_token,
-            }) => syn::Type::Reference(syn::TypeReference {
-                elem: Box::new(syn::Type::Slice(syn::TypeSlice {
-                    elem: t2.clone(),
-                    bracket_token: bracket_token.clone(),
-                })),
-                lifetime: None,
-                mutability: None,
-                and_token: *and_token,
-            }),
-            _ => unreachable!("Expected a slice of some T"),
-        },
-        _ => unreachable!("Expected a reference to a type"),
-    }
-}
+use syn::{parse_macro_input, DeriveInput, FieldsNamed};
 
 fn map_to_type_inside_slice(t1: &syn::Type) -> syn::Type {
     match t1 {
@@ -48,94 +25,59 @@ pub fn multislice(input: TokenStream) -> TokenStream {
     let output = match data {
         syn::Data::Struct(s) => match s.fields {
             syn::Fields::Named(FieldsNamed { named, .. }) => {
-                let idents_new_args = named.iter().map(|f| &f.ident);
-                let idents_new_args1 = named.iter().map(|f| &f.ident);
-                let idents_new_args2 = named.iter().map(|f| &f.ident);
-                let idents_new_ret = named.iter().map(|f| &f.ident);
-                let idents_getters = named.iter().map(|f| &f.ident);
-                let idents_struct_def = named.iter().map(|f| &f.ident);
-                let idents_capacity_def = named.iter().map(|f| &f.ident);
-                let idents_transmutes = named.iter().map(|f| &f.ident);
-                let idents_len_calc = named.iter().map(|f| &f.ident);
+                let slice_idents = named.iter().map(|f| &f.ident);
+                let slice_idents1 = named.iter().map(|f| &f.ident);
+                let slice_idents2 = named.iter().map(|f| &f.ident);
+                let slice_idents3 = named.iter().map(|f| &f.ident);
+                let slice_idents4 = named.iter().map(|f| &f.ident);
+                let slice_idents5 = named.iter().map(|f| &f.ident);
 
-                let types_new_args = named.iter().map(|f| &f.ty).map(map_to_ref_wo_lifetime);
-                let types_new_args1 = named.iter().map(|f| &f.ty).map(map_to_ref_wo_lifetime);
-                let types_getters = named.iter().map(|f| &f.ty).map(map_to_ref_wo_lifetime);
-                let types_inside_slices = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
-                let types_inside_slices2 = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
-                let types_inside_slices3 = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
+                let slice_types = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
+                let slice_types1 = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
+                let slice_types2 = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
+                let slice_types3 = named.iter().map(|f| &f.ty).map(map_to_type_inside_slice);
 
-                let create_ident_len = |(i, f): (usize, &syn::Field)| {
-                    let name = format!("len{}", i);
-                    Ident::new(name.as_str(), Span::call_site())
-                };
+                let field_count = named.iter().len();
 
-                let idents_len = named.iter().enumerate().map(create_ident_len);
-                let idents_len_transmutes = named.iter().enumerate().map(create_ident_len);
-                let idents_len_getters = named.iter().enumerate().map(create_ident_len);
-                let idents_len_ret = named.iter().enumerate().map(create_ident_len);
+                let offsets_idx = named.iter().enumerate().map(|(i, _)| i);
+                let offsets_idx2 = named.iter().enumerate().map(|(i, _)| i);
 
-                let first_ident = &named.first().expect("Expected at least one field in the struct").ident;
-                let next_idents = named.iter().skip(1).map(|f| &f.ident);
-                let idents_len_skip_1 = named.iter().take(next_idents.len()).enumerate().map(create_ident_len); 
-
-                let multislice_ident =
-                    Ident::new(format!("{}Multislice", ident).as_str(), Span::call_site());
-
+                let multislice_ident = Ident::new(format!("{}Multislice", ident).as_str(), Span::call_site());
 
                 quote! {
 
                     pub struct #multislice_ident {
                         container: Vec<u8>,
+                        offsets: [usize; #field_count],
                         _pin: std::marker::PhantomPinned,
-                        #(
-                        #idents_struct_def: *const u8,
-                        #idents_len: usize,
-                        )
-                        *
                     }
 
                     impl #ident<'_> {
-                        pub fn new(#(#idents_new_args1: #types_new_args1),*) -> #multislice_ident {
-                            #multislice_ident::new(#(#idents_new_args2), *)
+                        pub fn new(#(#slice_idents: &[#slice_types]),*) -> #multislice_ident {
+                            #multislice_ident::new(#(#slice_idents1), *)
                         }
                     }
 
                     impl #multislice_ident {
-                        fn new(#(#idents_new_args: #types_new_args), *) -> #multislice_ident {
-                            let mut container = Vec::with_capacity(#(#idents_capacity_def.len() * std::mem::size_of::<#types_inside_slices2>() + )* 0);
-                            let mut prev_slice_len = 0;
+                        fn new(#(#slice_idents2: &[#slice_types1]), *) -> #multislice_ident {
+                            let mut container = Vec::with_capacity(#(#slice_idents3.len() * std::mem::size_of::<#slice_types2>() + )* 0);
+                            
+                            let mut offsets: [usize; #field_count] = [0; #field_count];
 
                             unsafe {
                                 #(
-                                let (_, p, _) = #idents_transmutes.align_to::<u8>();
+                                offsets[#offsets_idx] = container.len();
+                                let (_, p, _) = #slice_idents4.align_to::<u8>();
                                 container.extend_from_slice(p);
                                 )
                                 *
                             };
 
-                            #(
-                            let #idents_len_transmutes = #idents_len_calc.len();  
-                            )
-                            *
-
-                            let mut ret = #multislice_ident {
+                            #multislice_ident {
                                 container,
+                                offsets,
                                 _pin: std::marker::PhantomPinned,
-                                #(#idents_new_ret: std::ptr::null()), *,
-                                #(#idents_len_ret), *
-                            };
-
-                            ret.#first_ident = ret.container.as_ptr();
-
-                            unsafe {
-                                #(
-                                    ret.#next_idents = ret.container.as_ptr().offset(ret.#idents_len_skip_1 as isize);
-                                )
-                                *
                             }
-
-                            ret
                         }
 
                         pub fn container(&self) -> &[u8] {
@@ -143,12 +85,17 @@ pub fn multislice(input: TokenStream) -> TokenStream {
                         }
 
                         #(
-                        pub fn #idents_getters(&self) -> #types_getters {
-                            let ptr = self.#idents_getters as *const std::ffi::c_void;
-                            let ptr = ptr as *const #types_inside_slices;
+                        pub fn #slice_idents5(&self) -> &[#slice_types3] {
+                            let ptr = unsafe { self.container.as_ptr().offset(self.offsets[#offsets_idx2] as isize) } as *const std::ffi::c_void;
+                            let ptr = ptr as *const #slice_types3;
+                            let slice_len_in_bytes = if #offsets_idx2 + 1 == #field_count {
+                                self.container.len() - self.offsets[#offsets_idx2]
+                            } else {
+                                self.offsets[#offsets_idx2 + 1] - self.offsets[#offsets_idx2]
+                            };
+                            let len_in_sizeof = slice_len_in_bytes / std::mem::size_of::<#slice_types3>();
                             unsafe {
-                                let slice = std::slice::from_raw_parts(ptr, self.#idents_len_getters);
-                                // let (_, slice, _) = slice.align_to::<#types_inside_slices>(); 
+                                let slice = std::slice::from_raw_parts(ptr, len_in_sizeof);
                                 // let reference: &str = std::str::from_utf8_unchecked(slice);
                                 slice
                             }
