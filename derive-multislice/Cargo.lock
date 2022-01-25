@@ -8,15 +8,7 @@ version = "0.1.0"
 dependencies = [
  "proc-macro2",
  "quote",
- "smol_str",
  "syn",
-]
-
-[[package]]
-name = "owning-container"
-version = "0.1.0"
-dependencies = [
- "derive-multislice",
 ]
 
 [[package]]
@@ -35,21 +27,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "47aa80447ce4daf1717500037052af176af5d38cc3e571d9ec1c7353fc10c87d"
 dependencies = [
  "proc-macro2",
-]
-
-[[package]]
-name = "serde"
-version = "1.0.135"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cf9235533494ea2ddcdb794665461814781c53f19d87b76e571a1c35acbad2b"
-
-[[package]]
-name = "smol_str"
-version = "0.1.21"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61d15c83e300cce35b7c8cd39ff567c1ef42dde6d4a1a38dbdbf9a59902261bd"
-dependencies = [
- "serde",
 ]
 
 [[package]]
